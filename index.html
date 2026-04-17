@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>As de Picas — El Clicker</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap');
+
+  :root {
+    --bg:        #1a0a2e;
+    --bg2:       #220d3a;
+    --bg3:       #2a1048;
+    --accent:    #c9a227;
+    --accent2:   #e8c94a;
+    --purple:    #7b4fa6;
+    --purple2:   #9b6fc6;
+    --text:      #f0e6ff;
+    --text2:     #b89ad0;
+    --text3:     #7a5a99;
+    --border:    rgba(201,162,39,0.25);
+    --border2:   rgba(201,162,39,0.5);
+    --glow:      rgba(201,162,39,0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Crimson Pro', Georgia, serif;
+    min-height: 100vh;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* fondo con patrón de rombos */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      repeating-linear-gradient(45deg, rgba(123,79,166,0.07) 0px, rgba(123,79,166,0.07) 1px, transparent 1px, transparent 28px),
+      repeating-linear-gradient(-45deg, rgba(123,79,166,0.07) 0px, rgba(123,79,166,0.07) 1px, transparent 1px, transparent 28px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(155,111,198,0.18) 0%, transparent 65%),
+                radial-gradient(ellipse at 0% 100%, rgba(100,50,160,0.12) 0%, transparent 50%),
+                radial-gradient(ellipse at 100% 100%, rgba(201,162,39,0.07) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  #game {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    height: 100vh;
+    gap: 0;
+  }
+
+  /* ── LEFT PANEL ── */
+  #left-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    border-right: 1px solid var(--border);
+    position: relative;
+  }
+
+  #counter-area {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+
+  #ficha-count {
+    font-family: 'Cinzel', serif;
+    font-size: 48px;
+    font-weight: 900;
+    color: var(--accent);
+    text-shadow: 0 0 30px rgba(201,162,39,0.4);
+    letter-spacing: 2px;
+    line-height: 1;
+  }
+
+  #ficha-label {
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    color: var(--text3);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  #click-info {
+    font-size: 14px;
+    color: var(--text2);
+    margin-top: 6px;
+    font-style: italic;
+  }
+
+  /* ── CARD ── */
+  #card-wrap {
+    position: relative;
+    cursor: pointer;
+    width: 180px;
+    height: 252px;
+    margin-bottom: 20px;
+    filter: drop-shadow(0 8px 32px rgba(201,162,39,0.25));
+    transition: filter 0.2s;
+  }
+
+  #card-wrap:hover {
+    filter: drop-shadow(0 12px 40px rgba(201,162,39,0.45));
+  }
+
+  #card-svg {
+    width: 180px;
+    height: 252px;
+    image-rendering: pixelated;
+    transition: transform 0.07s cubic-bezier(0.2,0,0.4,1);
+    display: block;
+  }
+
+  #card-wrap:active #card-svg {
+    transform: scale(0.88) rotate(-4deg);
+  }
+
+  .float-text {
+    position: absolute;
+    font-family: 'Cinzel', serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent2);
+    text-shadow: 0 0 10px rgba(201,162,39,0.6);
+    pointer-events: none;
+    animation: floatUp 0.9s ease-out forwards;
+    white-space: nowrap;
+    transform: translateX(-50%);
+  }
+
+  @keyframes floatUp {
+    0%   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-70px); }
+  }
+
+  /* ripple */
+  .ripple {
+    position: absolute;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    pointer-events: none;
+    animation: rippleOut 0.6s ease-out forwards;
+    transform: translate(-50%, -50%);
+  }
+
+  @keyframes rippleOut {
+    0%   { width: 0; height: 0; opacity: 0.8; }
+    100% { width: 140px; height: 140px; opacity: 0; }
+  }
+
+  /* ── BOTTOM BAR ── */
+  #bottom-bar {
+    position: absolute;
+    bottom: 16px;
+    left: 0; right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    align-items: center;
+  }
+
+  .icon-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    width: 42px; height: 42px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--text2);
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+    font-size: 18px;
+  }
+
+  .icon-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--glow); }
+  .icon-btn.active { border-color: var(--accent); color: var(--accent); background: var(--glow); }
+
+  /* ── RIGHT PANEL ── */
+  #right-panel {
+    width: 280px;
+    display: flex;
+    flex-direction: column;
+    padding: 16px 12px;
+    gap: 0;
+    background: rgba(26,10,46,0.6);
+    overflow: hidden;
+  }
+
+  .panel-title {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 10px;
+  }
+
+  #upgrades-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-right: 4px;
+  }
+
+  #upgrades-list::-webkit-scrollbar { width: 4px; }
+  #upgrades-list::-webkit-scrollbar-track { background: transparent; }
+  #upgrades-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .upg-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    background: rgba(42,16,72,0.5);
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .upg-row::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--purple);
+    border-radius: 3px 0 0 3px;
+    transition: background 0.2s;
+  }
+
+  .upg-row:hover:not(.cant-buy):not(.bought) {
+    background: rgba(123,79,166,0.25);
+    border-color: var(--border2);
+    transform: translateX(2px);
+  }
+
+  .upg-row:hover:not(.cant-buy):not(.bought)::before { background: var(--accent); }
+
+  .upg-row.cant-buy { opacity: 0.38; cursor: not-allowed; }
+
+  .upg-row.bought {
+    border-color: rgba(201,162,39,0.4);
+    background: rgba(201,162,39,0.07);
+    cursor: default;
+  }
+
+  .upg-row.bought::before { background: var(--accent); }
+
+  .upg-row.secret {
+    border-style: dashed;
+    border-color: rgba(123,79,166,0.3);
+    background: rgba(26,10,46,0.3);
+    cursor: default;
+  }
+
+  .upg-row.secret::before { background: var(--text3); }
+
+  .upg-sprite {
+    width: 40px; height: 40px;
+    image-rendering: pixelated;
+    flex-shrink: 0;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: rgba(26,10,46,0.5);
+  }
+
+  .upg-info { flex: 1; min-width: 0; }
+
+  .upg-name {
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .bought .upg-name { color: var(--accent); }
+
+  .upg-desc {
+    font-size: 11px;
+    color: var(--text2);
+    margin-top: 1px;
+    font-style: italic;
+  }
+
+  .upg-cost {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 600;
+    white-space: nowrap;
+    margin-top: 3px;
+  }
+
+  .bought .upg-cost { color: var(--text3); }
+  .secret .upg-name { color: var(--text3); font-style: italic; }
+
+  /* ── ACHIEVEMENT TOAST ── */
+  #achievement-toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: linear-gradient(135deg, rgba(42,16,72,0.97), rgba(26,10,46,0.97));
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    opacity: 0;
+    transition: opacity 0.4s, transform 0.4s;
+    pointer-events: none;
+    z-index: 100;
+    min-width: 280px;
+    max-width: 400px;
+    box-shadow: 0 4px 30px rgba(201,162,39,0.2);
+  }
+
+  #achievement-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .toast-icon { font-size: 24px; flex-shrink: 0; }
+
+  .toast-text { flex: 1; }
+
+  .toast-label {
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  .toast-name {
+    font-size: 15px;
+    color: var(--text);
+    font-weight: 300;
+    margin-top: 2px;
+  }
+
+  /* ── LOGROS MODAL ── */
+  #logros-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,4,20,0.85);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #logros-modal.open { display: flex; }
+
+  .modal-box {
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 16px;
+    padding: 28px;
+    width: 460px;
+    max-height: 70vh;
+    overflow-y: auto;
+    box-shadow: 0 0 60px rgba(201,162,39,0.15);
+  }
+
+  .modal-box::-webkit-scrollbar { width: 4px; }
+  .modal-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .modal-title {
+    font-family: 'Cinzel', serif;
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--accent);
+    letter-spacing: 3px;
+    text-align: center;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logro-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(123,79,166,0.15);
+  }
+
+  .logro-icon { font-size: 20px; flex-shrink: 0; }
+
+  .logro-name {
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    color: var(--accent);
+  }
+
+  .logro-desc { font-size: 12px; color: var(--text2); font-style: italic; margin-top: 1px; }
+
+  .logro-locked { opacity: 0.3; }
+  .logro-locked .logro-icon::after { content: '🔒'; }
+  .logro-locked .logro-name { color: var(--text3); }
+
+  .close-btn {
+    display: block;
+    margin: 20px auto 0;
+    background: none;
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 8px 28px;
+    color: var(--text2);
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .close-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── MUSIC TOGGLE ── */
+  #music-label {
+    font-size: 11px;
+    color: var(--text3);
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+<div id="game">
+
+  <!-- LEFT -->
+  <div id="left-panel">
+
+    <div id="counter-area">
+      <div id="ficha-count">0</div>
+      <div id="ficha-label">Fichas</div>
+      <div id="click-info">+1 ficha por clic</div>
+    </div>
+
+    <div id="card-wrap">
+      <svg id="card-svg" viewBox="0 0 36 50" xmlns="http://www.w3.org/2000/svg" style="image-rendering:pixelated">
+        <!-- card body -->
+        <rect x="0" y="0" width="36" height="50" rx="3" fill="#f5f0ff" stroke="#c9a227" stroke-width="1.2"/>
+        <rect x="1" y="1" width="34" height="48" rx="2.5" fill="#fdfaff"/>
+        <!-- corner top-left -->
+        <text x="3" y="10" font-size="7" font-family="monospace" font-weight="bold" fill="#1a0a2e">A</text>
+        <text x="3" y="17" font-size="6" font-family="monospace" fill="#1a0a2e">♠</text>
+        <!-- corner bottom-right (rotated) -->
+        <g transform="rotate(180,18,25)">
+          <text x="3" y="10" font-size="7" font-family="monospace" font-weight="bold" fill="#1a0a2e">A</text>
+          <text x="3" y="17" font-size="6" font-family="monospace" fill="#1a0a2e">♠</text>
+        </g>
+        <!-- center spade -->
+        <text x="18" y="30" font-size="20" font-family="monospace" fill="#1a0a2e" text-anchor="middle" dominant-baseline="middle">♠</text>
+        <!-- golden shimmer border -->
+        <rect x="1" y="1" width="34" height="48" rx="2.5" fill="none" stroke="#c9a227" stroke-width="0.4" stroke-dasharray="3,3" opacity="0.5"/>
+      </svg>
+    </div>
+
+    <div id="bottom-bar">
+      <button class="icon-btn active" id="music-btn" title="Música">♪</button>
+      <span id="music-label">música activa</span>
+      <button class="icon-btn" id="logros-btn" title="Logros">🏆</button>
+    </div>
+
+  </div>
+
+  <!-- RIGHT -->
+  <div id="right-panel">
+    <div class="panel-title">Potenciadores</div>
+    <div id="upgrades-list"></div>
+  </div>
+
+</div>
+
+<!-- ACHIEVEMENT TOAST -->
+<div id="achievement-toast">
+  <div class="toast-icon">🏆</div>
+  <div class="toast-text">
+    <div class="toast-label">Logro desbloqueado</div>
+    <div class="toast-name" id="toast-name"></div>
+  </div>
+</div>
+
+<!-- LOGROS MODAL -->
+<div id="logros-modal">
+  <div class="modal-box">
+    <div class="modal-title">⬥ Salón de la Fama ⬥</div>
+    <div id="logros-list"></div>
+    <button class="close-btn" id="close-modal">Cerrar</button>
+  </div>
+</div>
+
+<!-- MUSIC -->
+<audio id="bgmusic" src="music.mp3" loop preload="auto"></audio>
+
+<script>
+const UPGRADES = [
+  { id:0, name:"Dinero",            desc:"Unos billetes caídos del cielo. +3/clic",    cost:15,    mult:3,   unlock:0,    icon:"money",   sound:"cash"    },
+  { id:1, name:"Doble Pareja",      desc:"Las cartas se duplican. +7/clic",             cost:80,    mult:7,   unlock:0,    icon:"pair",    sound:"shuffle" },
+  { id:2, name:"Yagcson",           desc:"El perro del casino. +15/clic",               cost:300,   mult:15,  unlock:150,  icon:"dog",     sound:"bark"    },
+  { id:3, name:"IA",                desc:"Inteligencia artificial. +40/clic",           cost:1200,  mult:40,  unlock:600,  icon:"ai",      sound:"hello"   },
+  { id:4, name:"Granja de hierro",  desc:"Lingotes de Minecraft. +100/clic",            cost:5000,  mult:100, unlock:2500, icon:"iron",    sound:"anvil"   },
+  { id:5, name:"Criptocoins",       desc:"Blockchain descentralizada. +250/clic",       cost:18000, mult:250, unlock:9000, icon:"crypto",  sound:"bizum"   },
+  { id:6, name:"Joseph Anthony",    desc:"El magnate legendario. +700/clic",            cost:70000, mult:700, unlock:35000,icon:"joseph",  sound:"laugh"   },
+];
+
+const LOGROS = [
+  { id:0,  name:"Primera ficha",      desc:"Haz tu primer clic",             req:1     },
+  { id:1,  name:"Aprendiz",           desc:"Alcanza 50 fichas",              req:50    },
+  { id:2,  name:"Las manos calientes",desc:"Alcanza 200 fichas",             req:200   },
+  { id:3,  name:"En racha",           desc:"Alcanza 500 fichas",             req:500   },
+  { id:4,  name:"Hombre de negocios", desc:"Alcanza 2.000 fichas",           req:2000  },
+  { id:5,  name:"El crupier",         desc:"Alcanza 10.000 fichas",          req:10000 },
+  { id:6,  name:"Señor del casino",   desc:"Alcanza 50.000 fichas",          req:50000 },
+  { id:7,  name:"Leyenda de las picas",desc:"Alcanza 200.000 fichas",        req:200000},
+];
+
+let fichas = 0;
+let clickPower = 1;
+let bought = new Set();
+let logrosUnlocked = new Set();
+let musicOn = true;
+let audioCtx = null;
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+/* ── SOUND ENGINE ── */
+function playSound(type) {
+  try {
+    const ctx = getAudioCtx();
+    if (ctx.state === 'suspended') ctx.resume();
+
+    if (type === 'card') {
+      // carta: snap corto
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 0.07, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) {
+        const t = i / ctx.sampleRate;
+        d[i] = (Math.random() * 2 - 1) * Math.exp(-t * 80) * 0.7;
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass'; f.frequency.value = 3500; f.Q.value = 0.6;
+      src.connect(f); f.connect(ctx.destination);
+      src.start();
+
+    } else if (type === 'cash') {
+      // caja registradora: ding + drawer
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.setValueAtTime(1320, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.4, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(); osc.stop(ctx.currentTime + 0.35);
+      // drawer click
+      setTimeout(() => {
+        const n = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
+        const nd = n.getChannelData(0);
+        for (let i = 0; i < nd.length; i++) nd[i] = (Math.random()*2-1)*Math.exp(-i/(ctx.sampleRate*0.005))*0.5;
+        const ns = ctx.createBufferSource(); ns.buffer = n;
+        ns.connect(ctx.destination); ns.start();
+      }, 200);
+
+    } else if (type === 'shuffle') {
+      // barajar: ráfaga de clicks rápidos
+      for (let k = 0; k < 6; k++) {
+        setTimeout(() => {
+          const n = ctx.createBuffer(1, ctx.sampleRate * 0.04, ctx.sampleRate);
+          const nd = n.getChannelData(0);
+          for (let i = 0; i < nd.length; i++) nd[i] = (Math.random()*2-1)*Math.exp(-i/(ctx.sampleRate*0.008))*0.45;
+          const ns = ctx.createBufferSource(); ns.buffer = n;
+          const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2800 + Math.random()*800;
+          ns.connect(f); f.connect(ctx.destination); ns.start();
+        }, k * 55);
+      }
+
+    } else if (type === 'bark') {
+      // ladrido: woof
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(320, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + 0.08);
+      osc.frequency.exponentialRampToValueAtTime(260, ctx.currentTime + 0.15);
+      osc.frequency.exponentialRampToValueAtTime(140, ctx.currentTime + 0.25);
+      gain.gain.setValueAtTime(0.5, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900;
+      osc.connect(f); f.connect(gain); gain.connect(ctx.destination);
+      osc.start(); osc.stop(ctx.currentTime + 0.3);
+
+    } else if (type === 'hello') {
+      // hello robótico: dos tonos sintetizados
+      const times = [
+        [660, 0, 0.12],
+        [550, 0.13, 0.12],
+        [440, 0.26, 0.18],
+      ];
+      times.forEach(([freq, delay, dur]) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.value = freq;
+        g.gain.setValueAtTime(0.18, ctx.currentTime + delay);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + dur);
+        const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq * 2; f.Q.value = 2;
+        osc.connect(f); f.connect(g); g.connect(ctx.destination);
+        osc.start(ctx.currentTime + delay); osc.stop(ctx.currentTime + delay + dur + 0.01);
+      });
+
+    } else if (type === 'anvil') {
+      // martillazo: CLANG grave
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(180, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.4);
+      g.gain.setValueAtTime(0.6, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 400;
+      osc.connect(f); f.connect(g); g.connect(ctx.destination);
+      osc.start(); osc.stop(ctx.currentTime + 0.5);
+      // impacto inicial
+      const n = ctx.createBuffer(1, ctx.sampleRate * 0.04, ctx.sampleRate);
+      const nd = n.getChannelData(0);
+      for (let i = 0; i < nd.length; i++) nd[i] = (Math.random()*2-1)*Math.exp(-i/(ctx.sampleRate*0.003))*0.8;
+      const ns = ctx.createBufferSource(); ns.buffer = n; ns.connect(ctx.destination); ns.start();
+
+    } else if (type === 'bizum') {
+      // bizum: dos pitidos cortos típicos de notificación
+      [0, 0.18].forEach(delay => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.frequency.value = 1046;
+        g.gain.setValueAtTime(0.3, ctx.currentTime + delay);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.14);
+        osc.connect(g); g.connect(ctx.destination);
+        osc.start(ctx.currentTime + delay); osc.stop(ctx.currentTime + delay + 0.15);
+      });
+
+    } else if (type === 'laugh') {
+      // risa de ricachón: JA JA JA
+      [0, 0.22, 0.44, 0.66].forEach((delay, i) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(260 - i * 10, ctx.currentTime + delay);
+        osc.frequency.exponentialRampToValueAtTime(180 - i * 8, ctx.currentTime + delay + 0.18);
+        g.gain.setValueAtTime(0.4, ctx.currentTime + delay);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.2);
+        osc.connect(g); g.connect(ctx.destination);
+        osc.start(ctx.currentTime + delay); osc.stop(ctx.currentTime + delay + 0.22);
+      });
+    }
+  } catch(e) {}
+}
+
+/* ── PIXEL SPRITES ── */
+function drawSprite(icon, size = 40) {
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  const p = size / 16;
+
+  if (icon === 'money') {
+    // billete
+    ctx.fillStyle = '#2d7a2d'; ctx.fillRect(2*p,4*p,12*p,9*p);
+    ctx.fillStyle = '#1a4f1a'; ctx.fillRect(2*p,4*p,12*p,p); ctx.fillRect(2*p,12*p,12*p,p);
+    ctx.fillStyle = '#3da03d'; ctx.fillRect(3*p,5*p,10*p,2*p);
+    ctx.fillStyle = '#c8f0c8'; ctx.fillRect(6*p,6*p,4*p,5*p);
+    ctx.fillStyle = '#2d7a2d'; ctx.fillRect(7*p,7*p,2*p,3*p);
+    ctx.fillStyle = '#c9a227'; ctx.fillRect(p,3*p,p,p); ctx.fillRect(14*p,3*p,p,p); ctx.fillRect(p,12*p,p,p); ctx.fillRect(14*p,12*p,p,p);
+
+  } else if (icon === 'pair') {
+    const drawCard = (ox, oy, col) => {
+      ctx.fillStyle = '#fdfaff'; ctx.fillRect(ox,oy,7*p,10*p);
+      ctx.fillStyle = col;
+      ctx.fillRect(ox,oy,p,10*p); ctx.fillRect(ox+6*p,oy,p,10*p);
+      ctx.fillRect(ox,oy,7*p,p); ctx.fillRect(ox,oy+9*p,7*p,p);
+      ctx.fillStyle = col;
+      ctx.fillRect(ox+p,oy+p,2*p,2*p);
+      ctx.fillRect(ox+3*p,oy+4*p,2*p,3*p); ctx.fillRect(ox+2*p,oy+3*p,p,p); ctx.fillRect(ox+4*p,oy+3*p,p,p);
+    };
+    drawCard(p,3*p,'#1a0a2e'); drawCard(8*p,3*p,'#8b0000');
+
+  } else if (icon === 'dog') {
+    // perro pixel
+    ctx.fillStyle = '#c8860a'; // cuerpo dorado
+    ctx.fillRect(4*p,8*p,8*p,6*p); // cuerpo
+    ctx.fillRect(3*p,6*p,7*p,5*p); // cabeza
+    ctx.fillStyle = '#f5c87a'; // hocico
+    ctx.fillRect(4*p,8*p,4*p,3*p);
+    ctx.fillStyle = '#1a0a2e'; // ojos
+    ctx.fillRect(4*p,7*p,p,p); ctx.fillRect(7*p,7*p,p,p);
+    ctx.fillStyle = '#1a0a2e'; // nariz
+    ctx.fillRect(5*p,9*p,2*p,p);
+    ctx.fillStyle = '#c8860a'; // orejas
+    ctx.fillRect(2*p,5*p,2*p,3*p); ctx.fillRect(9*p,5*p,2*p,3*p);
+    ctx.fillStyle = '#f5c87a'; // interior orejas
+    ctx.fillRect(2*p,6*p,p,2*p); ctx.fillRect(10*p,6*p,p,2*p);
+    ctx.fillStyle = '#c8860a'; // patas
+    ctx.fillRect(4*p,14*p,2*p,2*p); ctx.fillRect(7*p,14*p,2*p,2*p);
+    ctx.fillRect(3*p,13*p,p,2*p); ctx.fillRect(9*p,13*p,p,2*p);
+    ctx.fillStyle = '#ff6b6b'; // lengua
+    ctx.fillRect(6*p,10*p,2*p,2*p);
+    ctx.fillStyle = '#cc4444';
+    ctx.fillRect(6*p,11*p,2*p,p);
+    // collar
+    ctx.fillStyle = '#7b4fa6';
+    ctx.fillRect(4*p,10*p,8*p,p);
+    ctx.fillStyle = '#c9a227';
+    ctx.fillRect(7*p,10*p,2*p,p);
+    // cola
+    ctx.fillStyle = '#c8860a';
+    ctx.fillRect(12*p,9*p,2*p,3*p); ctx.fillRect(13*p,8*p,p,p);
+
+  } else if (icon === 'ai') {
+    ctx.fillStyle = '#534AB7'; ctx.fillRect(3*p,4*p,10*p,8*p);
+    ctx.fillStyle = '#EEEDFE';
+    ctx.fillRect(4*p,5*p,2*p,2*p); ctx.fillRect(7*p,5*p,2*p,2*p); ctx.fillRect(10*p,5*p,2*p,2*p);
+    ctx.fillRect(4*p,9*p,8*p,p);
+    ctx.fillStyle = '#534AB7';
+    ctx.fillRect(5*p,2*p,p,2*p); ctx.fillRect(8*p,2*p,p,2*p); ctx.fillRect(11*p,2*p,p,2*p);
+    ctx.fillRect(5*p,12*p,p,2*p); ctx.fillRect(8*p,12*p,p,2*p); ctx.fillRect(11*p,12*p,p,2*p);
+    ctx.fillStyle = '#c9a227';
+    ctx.fillRect(2*p,6*p,p,2*p); ctx.fillRect(13*p,6*p,p,2*p);
+    ctx.fillRect(2*p,9*p,p,2*p); ctx.fillRect(13*p,9*p,p,2*p);
+
+  } else if (icon === 'iron') {
+    // lingote minecraft
+    ctx.fillStyle = '#9a9a9a'; ctx.fillRect(3*p,5*p,10*p,8*p);
+    ctx.fillStyle = '#c0c0c0'; ctx.fillRect(4*p,6*p,8*p,3*p);
+    ctx.fillStyle = '#707070'; ctx.fillRect(3*p,5*p,p,8*p); ctx.fillRect(3*p,12*p,10*p,p);
+    ctx.fillStyle = '#e0e0e0'; ctx.fillRect(4*p,6*p,3*p,2*p);
+    ctx.fillStyle = '#9a9a9a'; ctx.fillRect(5*p,3*p,6*p,2*p);
+    ctx.fillStyle = '#707070'; ctx.fillRect(5*p,3*p,p,2*p); ctx.fillRect(10*p,3*p,p,2*p);
+    ctx.fillStyle = '#c0c0c0'; ctx.fillRect(6*p,3*p,4*p,p);
+
+  } else if (icon === 'crypto') {
+    ctx.fillStyle = '#F7931A'; ctx.fillRect(3*p,2*p,10*p,10*p);
+    ctx.fillStyle = '#c97010'; ctx.fillRect(3*p,2*p,10*p,p); ctx.fillRect(3*p,11*p,10*p,p); ctx.fillRect(3*p,2*p,p,10*p); ctx.fillRect(12*p,2*p,p,10*p);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(5*p,4*p,6*p,p); ctx.fillRect(5*p,7*p,6*p,p);
+    ctx.fillRect(5*p,4*p,p,4*p); ctx.fillRect(5*p,7*p,p,3*p);
+    ctx.fillRect(9*p,4*p,p,p); ctx.fillRect(9*p,7*p,p,p);
+    ctx.fillRect(10*p,5*p,p,2*p);
+    ctx.fillStyle = '#534AB7'; ctx.fillRect(2*p,12*p,12*p,4*p);
+    ctx.fillStyle = '#EEEDFE'; ctx.fillRect(4*p,13*p,8*p,p); ctx.fillRect(4*p,14*p,8*p,p);
+
+  } else if (icon === 'joseph') {
+    // anciano rico pixel
+    ctx.fillStyle = '#F5C4B3'; ctx.fillRect(5*p,2*p,6*p,5*p); // cabeza
+    ctx.fillStyle = '#d4a090'; // sombras cara
+    ctx.fillRect(5*p,5*p,p,2*p); ctx.fillRect(10*p,5*p,p,2*p);
+    ctx.fillStyle = '#fff'; ctx.fillRect(4*p,p,8*p,2*p); // pelo blanco
+    ctx.fillRect(4*p,p,p,3*p); ctx.fillRect(11*p,p,p,3*p);
+    ctx.fillStyle = '#1a0a2e'; ctx.fillRect(6*p,4*p,p,p); ctx.fillRect(9*p,4*p,p,p); // ojos
+    ctx.fillStyle = '#e8a090'; ctx.fillRect(7*p,5*p,2*p,p); // bigote
+    ctx.fillStyle = '#1a1a50'; // traje azul oscuro
+    ctx.fillRect(4*p,7*p,8*p,6*p);
+    ctx.fillStyle = '#fff'; // camisa blanca
+    ctx.fillRect(7*p,7*p,2*p,4*p);
+    ctx.fillStyle = '#8b0000'; // corbata
+    ctx.fillRect(7*p,7*p,2*p,5*p);
+    ctx.fillStyle = '#c9a227'; // detalles dorados
+    ctx.fillRect(4*p,7*p,p,6*p); ctx.fillRect(11*p,7*p,p,6*p); // botones hombros
+    ctx.fillRect(6*p,7*p,p,p); ctx.fillRect(9*p,7*p,p,p);
+    ctx.fillStyle = '#F5C4B3'; // manos
+    ctx.fillRect(2*p,8*p,2*p,3*p); ctx.fillRect(12*p,8*p,2*p,3*p);
+    ctx.fillStyle = '#1a1a50'; // pantalón
+    ctx.fillRect(4*p,13*p,3*p,3*p); ctx.fillRect(9*p,13*p,3*p,3*p);
+    ctx.fillStyle = '#1a0a2e'; // zapatos
+    ctx.fillRect(4*p,15*p,3*p,p); ctx.fillRect(9*p,15*p,3*p,p);
+    // monóculo
+    ctx.fillStyle = '#c9a227';
+    ctx.fillRect(8*p,3*p,3*p,p); ctx.fillRect(8*p,3*p,p,2*p); ctx.fillRect(10*p,3*p,p,2*p); ctx.fillRect(8*p,4*p,3*p,p);
+  }
+
+  return c;
+}
+
+/* ── FORMAT ── */
+function fmt(n) {
+  if (n >= 1e9) return (n/1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return Math.floor(n).toLocaleString('es');
+}
+
+/* ── UI UPDATE ── */
+function updateUI() {
+  document.getElementById('ficha-count').textContent = fmt(fichas);
+  document.getElementById('click-info').textContent = '+' + clickPower + ' ficha' + (clickPower !== 1 ? 's' : '') + ' por clic';
+
+  document.querySelectorAll('.upg-row:not(.bought):not(.secret)').forEach(row => {
+    const id = parseInt(row.dataset.id);
+    const upg = UPGRADES[id];
+    if (fichas >= upg.cost) row.classList.remove('cant-buy');
+    else row.classList.add('cant-buy');
+  });
+
+  revealUpgrades();
+  checkLogros();
+}
+
+/* ── REVEAL UPGRADES ── */
+function revealUpgrades() {
+  UPGRADES.forEach(upg => {
+    if (bought.has(upg.id)) return;
+    const row = document.querySelector(`.upg-row[data-id="${upg.id}"]`);
+    if (!row) return;
+    if (fichas >= upg.unlock && row.classList.contains('secret')) {
+      row.classList.remove('secret', 'cant-buy');
+      row.querySelector('.upg-name').textContent = upg.name;
+      row.querySelector('.upg-desc').textContent = upg.desc;
+      row.querySelector('.upg-cost').textContent = fmt(upg.cost) + ' fichas';
+      const sprite = drawSprite(upg.icon, 40);
+      sprite.className = 'upg-sprite';
+      const old = row.querySelector('.upg-sprite');
+      if (old) row.replaceChild(sprite, old);
+      if (fichas < upg.cost) row.classList.add('cant-buy');
+      // flash
+      row.style.transition = 'none';
+      row.style.borderColor = 'rgba(201,162,39,0.9)';
+      setTimeout(() => { row.style.transition = ''; row.style.borderColor = ''; }, 600);
+    }
+  });
+}
+
+/* ── LOGROS ── */
+let toastQueue = [];
+let toastShowing = false;
+
+function checkLogros() {
+  LOGROS.forEach(l => {
+    if (!logrosUnlocked.has(l.id) && fichas >= l.req) {
+      logrosUnlocked.add(l.id);
+      toastQueue.push(l);
+      processToast();
+    }
+  });
+}
+
+function processToast() {
+  if (toastShowing || toastQueue.length === 0) return;
+  toastShowing = true;
+  const l = toastQueue.shift();
+  const toast = document.getElementById('achievement-toast');
+  document.getElementById('toast-name').textContent = l.name;
+  toast.classList.add('show');
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => { toastShowing = false; processToast(); }, 500);
+  }, 3000);
+}
+
+function renderLogrosModal() {
+  const list = document.getElementById('logros-list');
+  list.innerHTML = '';
+  LOGROS.forEach(l => {
+    const div = document.createElement('div');
+    div.className = 'logro-item' + (logrosUnlocked.has(l.id) ? '' : ' logro-locked');
+    div.innerHTML = `
+      <div class="logro-icon">${logrosUnlocked.has(l.id) ? '🏆' : ''}</div>
+      <div>
+        <div class="logro-name">${logrosUnlocked.has(l.id) ? l.name : '???'}</div>
+        <div class="logro-desc">${logrosUnlocked.has(l.id) ? l.desc : 'Sigue jugando para descubrir este logro'}</div>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+/* ── CARD CLICK ── */
+const cardWrap = document.getElementById('card-wrap');
+cardWrap.addEventListener('click', function(e) {
+  fichas += clickPower;
+  playSound('card');
+
+  const rect = cardWrap.getBoundingClientRect();
+  const panelRect = document.getElementById('left-panel').getBoundingClientRect();
+  const x = rect.left - panelRect.left + rect.width / 2;
+  const y = rect.top - panelRect.top + 20;
+
+  const ft = document.createElement('div');
+  ft.className = 'float-text';
+  ft.textContent = '+' + clickPower;
+  ft.style.left = x + 'px';
+  ft.style.top = y + 'px';
+  document.getElementById('left-panel').appendChild(ft);
+  setTimeout(() => ft.remove(), 950);
+
+  // ripple
+  const rip = document.createElement('div');
+  rip.className = 'ripple';
+  rip.style.left = (rect.left - panelRect.left + rect.width/2) + 'px';
+  rip.style.top = (rect.top - panelRect.top + rect.height/2) + 'px';
+  document.getElementById('left-panel').appendChild(rip);
+  setTimeout(() => rip.remove(), 650);
+
+  updateUI();
+});
+
+/* ── BUILD UPGRADES ── */
+function buildUpgrades() {
+  const list = document.getElementById('upgrades-list');
+  UPGRADES.forEach(upg => {
+    const row = document.createElement('div');
+    const isSecret = fichas < upg.unlock;
+
+    row.className = 'upg-row' + (isSecret ? ' secret' : ' cant-buy');
+    row.dataset.id = upg.id;
+
+    const sprite = isSecret ? (() => {
+      const c = document.createElement('canvas');
+      c.width = 40; c.height = 40;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#3a1a5a';
+      ctx.fillRect(0,0,40,40);
+      ctx.fillStyle = '#5a2a7a';
+      ctx.font = '20px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('?', 20, 28);
+      return c;
+    })() : drawSprite(upg.icon, 40);
+
+    sprite.className = 'upg-sprite';
+
+    const info = document.createElement('div');
+    info.className = 'upg-info';
+    info.innerHTML = `
+      <div class="upg-name">${isSecret ? '???' : upg.name}</div>
+      <div class="upg-desc">${isSecret ? 'Potenciador secreto' : upg.desc}</div>
+      <div class="upg-cost">${isSecret ? '???' : fmt(upg.cost) + ' fichas'}</div>
+    `;
+
+    row.appendChild(sprite);
+    row.appendChild(info);
+
+    row.addEventListener('click', () => {
+      if (bought.has(upg.id) || row.classList.contains('secret') || fichas < upg.cost) return;
+      fichas -= upg.cost;
+      clickPower += upg.mult;
+      bought.add(upg.id);
+      row.classList.add('bought');
+      row.classList.remove('cant-buy');
+      row.querySelector('.upg-cost').textContent = 'Comprado ✓';
+      row.style.cursor = 'default';
+      playSound(upg.sound);
+      updateUI();
+    });
+
+    list.appendChild(row);
+  });
+}
+
+/* ── MUSIC ── */
+const bgmusic = document.getElementById('bgmusic');
+bgmusic.volume = 0.45;
+
+document.getElementById('music-btn').addEventListener('click', () => {
+  musicOn = !musicOn;
+  const btn = document.getElementById('music-btn');
+  const lbl = document.getElementById('music-label');
+  if (musicOn) {
+    bgmusic.play().catch(() => {});
+    btn.classList.add('active');
+    btn.textContent = '♪';
+    lbl.textContent = 'música activa';
+  } else {
+    bgmusic.pause();
+    btn.classList.remove('active');
+    btn.textContent = '♪';
+    lbl.style.opacity = '0.4';
+    lbl.textContent = 'música pausada';
+    lbl.style.opacity = '';
+  }
+});
+
+/* ── LOGROS MODAL ── */
+document.getElementById('logros-btn').addEventListener('click', () => {
+  renderLogrosModal();
+  document.getElementById('logros-modal').classList.add('open');
+});
+document.getElementById('close-modal').addEventListener('click', () => {
+  document.getElementById('logros-modal').classList.remove('open');
+});
+document.getElementById('logros-modal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('logros-modal'))
+    document.getElementById('logros-modal').classList.remove('open');
+});
+
+/* ── INIT ── */
+buildUpgrades();
+updateUI();
+
+// start music on first interaction
+document.addEventListener('click', () => {
+  if (musicOn && bgmusic.paused) bgmusic.play().catch(() => {});
+}, { once: true });
+</script>
+</body>
+</html>
