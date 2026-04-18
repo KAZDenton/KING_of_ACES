@@ -91,11 +91,52 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
 .logro-locked .logro-name{color:var(--text3);}
 .close-btn{display:block;margin:18px auto 0;background:none;border:1px solid var(--border2);border-radius:8px;padding:8px 28px;color:var(--text2);font-family:'Cinzel',serif;font-size:12px;letter-spacing:2px;cursor:pointer;transition:all 0.2s;}
 .close-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+/* ── RANK SYSTEM ── */
+#rank-widget{position:absolute;top:16px;left:16px;z-index:20;display:flex;flex-direction:column;gap:6px;pointer-events:none;opacity:0;transition:opacity 0.3s;}
+#rank-widget.visible{opacity:1;}
+#rank-letter{font-family:'Cinzel',serif;font-weight:900;font-size:72px;line-height:1;letter-spacing:-2px;transition:color 0.2s,text-shadow 0.3s;animation:rankPop 0.25s cubic-bezier(0.2,0,0.3,1.4);}
+@keyframes rankPop{0%{transform:scale(1.6);}100%{transform:scale(1);}}
+#rank-subtext{font-family:'Cinzel',serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;transition:color 0.2s;margin-top:-4px;}
+#rank-bar-bg{width:100px;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;}
+#rank-bar-fill{height:100%;width:0%;border-radius:3px;transition:width 0.15s ease-out;}
+#rank-timer-dots{display:flex;gap:3px;margin-top:4px;}
+.timer-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.2);}
+.timer-dot.active{background:currentColor;}
+
+/* SSS screen smoke */
+#sss-smoke{position:fixed;inset:0;pointer-events:none;z-index:5;opacity:0;transition:opacity 0.8s;}
+#sss-smoke.active{opacity:1;}
+
+/* rank colors */
+.rank-D{color:#9a9a9a;text-shadow:0 0 8px rgba(154,154,154,0.4);}
+.rank-C{color:#4caf50;text-shadow:0 0 12px rgba(76,175,80,0.5);}
+.rank-B{color:#42a5f5;text-shadow:0 0 16px rgba(66,165,245,0.7),0 0 32px rgba(66,165,245,0.3);}
+.rank-A{color:#e0e0e0;text-shadow:0 0 20px #fff,0 0 40px rgba(220,220,255,0.8),0 0 80px rgba(180,180,255,0.4);}
+.rank-S{color:#ffd700;text-shadow:0 0 20px rgba(255,215,0,0.9),0 0 40px rgba(255,215,0,0.5);}
+.rank-SS{color:#ffec3d;text-shadow:0 0 24px #ffd700,0 0 48px rgba(255,215,0,0.8),0 0 80px rgba(255,180,0,0.5);}
+.rank-SSS{color:#ffe57f;text-shadow:0 0 30px #ffd700,0 0 60px #ffb300,0 0 100px rgba(255,200,0,0.7),0 0 160px rgba(255,150,0,0.3);}
 </style>
 </head>
 <body>
 <div id="game">
   <div id="left-panel">
+
+    <!-- RANK WIDGET -->
+    <div id="rank-widget">
+      <div id="rank-letter" class="rank-D">D</div>
+      <div id="rank-subtext">Dope!</div>
+      <div id="rank-bar-bg"><div id="rank-bar-fill"></div></div>
+      <div id="rank-timer-dots">
+        <div class="timer-dot"></div><div class="timer-dot"></div><div class="timer-dot"></div>
+        <div class="timer-dot"></div><div class="timer-dot"></div><div class="timer-dot"></div>
+        <div class="timer-dot"></div><div class="timer-dot"></div><div class="timer-dot"></div>
+        <div class="timer-dot"></div>
+      </div>
+    </div>
+
+    <!-- SSS SMOKE OVERLAY -->
+    <canvas id="sss-smoke"></canvas>
     <div id="counter-area">
       <div id="ficha-count">0</div>
       <div id="ficha-label">Fichas</div>
@@ -192,6 +233,7 @@ const LOGROS_POWERUP=[
   {id:'p5',name:'Inversión piramidal',  desc:'Compra Criptocoins',         upgId:5},
   {id:'p6',name:'Jefe del Carlos Haya', desc:'Compra a Joseph Anthony',    upgId:6},
   {id:'p7',name:'The life of Joseph Anthony', desc:'Compra Dinero 100 veces', upgId:0, reqCount:100},
+  {id:'p8',name:'Poker May Cry',        desc:'Alcanza el rango SSS',        upgId:-1},
 ];
 
 /* STATE */
@@ -202,6 +244,185 @@ let logrosUnlocked=new Set();
 let musicOn=true,currentTrack=0;
 let audioCtx=null;
 let toastQueue=[],toastShowing=false;
+
+/* ── RANK SYSTEM ── */
+const RANKS=[
+  {key:'D', label:'Dope!',              cls:'rank-D', threshold:10,  barMax:40,  barColor:'#9a9a9a'},
+  {key:'C', label:'Cool',               cls:'rank-C', threshold:20,  barMax:60,  barColor:'#4caf50'},
+  {key:'B', label:'Badass',             cls:'rank-B', threshold:35,  barMax:80,  barColor:'#42a5f5'},
+  {key:'A', label:'Apocalyptic',        cls:'rank-A', threshold:55,  barMax:100, barColor:'#e0e0e0'},
+  {key:'S', label:'Savage!',            cls:'rank-S', threshold:80,  barMax:120, barColor:'#ffd700'},
+  {key:'SS',label:'Sick Skills!!',      cls:'rank-SS',threshold:110, barMax:140, barColor:'#ffec3d'},
+  {key:'SSS',label:'Smokin\u00b4Sexy Style!!!',cls:'rank-SSS',threshold:150,barMax:1,barColor:'#ffe57f'},
+];
+let comboClicks=0;
+let comboTimer=null;
+let currentRankIdx=-1;
+let rankVisible=false;
+const COMBO_DECAY_SECS=20;
+let comboTimerLeft=0;
+let comboTimerInterval=null;
+let sssActive=false;
+let sssParticles=[];
+
+function getRankForClicks(n){
+  for(let i=RANKS.length-1;i>=0;i--){if(n>=RANKS[i].threshold)return i;}
+  return -1;
+}
+
+function playRankSound(idx){
+  try{
+    const ctx=getACtx();if(ctx.state==='suspended')ctx.resume();
+    const notes=[[220,0.08],[330,0.08],[440,0.08],[660,0.12],[880,0.18],[1100,0.22],[1320,0.3]];
+    const [freq,vol]=notes[Math.min(idx,6)];
+    const layers=Math.min(idx+1,4);
+    for(let l=0;l<layers;l++){
+      const o=ctx.createOscillator();const g=ctx.createGain();
+      o.type=l%2===0?'sine':'triangle';
+      o.frequency.setValueAtTime(freq*(1+l*0.5),ctx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(freq*(1.5+l*0.5),ctx.currentTime+0.15+l*0.05);
+      g.gain.setValueAtTime(vol/(l+1),ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.4+l*0.1);
+      o.connect(g);g.connect(ctx.destination);
+      o.start(ctx.currentTime+l*0.04);o.stop(ctx.currentTime+0.5+l*0.1);
+    }
+    if(idx>=5){
+      const o2=ctx.createOscillator();const g2=ctx.createGain();
+      o2.type='sine';o2.frequency.setValueAtTime(freq*2,ctx.currentTime);
+      o2.frequency.exponentialRampToValueAtTime(freq*3,ctx.currentTime+0.3);
+      g2.gain.setValueAtTime(vol*0.6,ctx.currentTime);g2.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.6);
+      o2.connect(g2);g2.connect(ctx.destination);o2.start();o2.stop(ctx.currentTime+0.65);
+    }
+  }catch(e){}
+}
+
+function updateRankUI(){
+  const widget=document.getElementById('rank-widget');
+  const letter=document.getElementById('rank-letter');
+  const sub=document.getElementById('rank-subtext');
+  const fill=document.getElementById('rank-bar-fill');
+  const dots=document.querySelectorAll('.timer-dot');
+
+  if(currentRankIdx<0||!rankVisible){widget.classList.remove('visible');setSSSSmoke(false);return;}
+  widget.classList.add('visible');
+  const r=RANKS[currentRankIdx];
+  letter.textContent=r.key;
+  letter.className='rank-letter '+r.cls;
+  sub.textContent=r.label;
+  sub.style.color=r.barColor;
+  fill.style.background=r.barColor;
+  fill.style.boxShadow=`0 0 8px ${r.barColor}`;
+
+  // bar = total combo progress from 0 to SSS threshold, decays to 0 on idle
+  const maxClicks=RANKS[6].threshold;
+  if(currentRankIdx<RANKS.length-1){
+    const nextThresh=RANKS[currentRankIdx+1].threshold;
+    const curThresh=RANKS[currentRankIdx].threshold;
+    const pct=Math.min(100,Math.max(0,(comboClicks-curThresh)/(nextThresh-curThresh)*100));
+    fill.style.width=pct+'%';
+  } else {
+    const pct=Math.min(100,(comboTimerLeft/COMBO_DECAY_SECS)*100);
+    fill.style.width=pct+'%';
+  }
+
+  // timer dots
+  const activeDots=Math.ceil((comboTimerLeft/COMBO_DECAY_SECS)*10);
+  dots.forEach((d,i)=>{
+    d.classList.toggle('active',i<activeDots);
+    d.style.color=r.barColor;
+  });
+
+  setSSSSmoke(currentRankIdx===6);
+}
+
+function setSSSSmoke(on){
+  const el=document.getElementById('sss-smoke');
+  if(on&&!sssActive){sssActive=true;el.classList.add('active');startSSSSmoke();}
+  else if(!on&&sssActive){sssActive=false;el.classList.remove('active');}
+}
+
+// SSS edge smoke on canvas
+const smokeCanvas=document.getElementById('sss-smoke');
+const sctx=smokeCanvas.getContext('2d');
+function resizeSmokeCanvas(){smokeCanvas.width=window.innerWidth;smokeCanvas.height=window.innerHeight;}
+resizeSmokeCanvas();window.addEventListener('resize',resizeSmokeCanvas);
+
+function startSSSSmoke(){
+  if(!sssActive)return;
+  const w=smokeCanvas.width,h=smokeCanvas.height;
+  for(let i=0;i<3;i++){
+    const edge=Math.floor(Math.random()*4);
+    let x,y;
+    if(edge===0){x=Math.random()*w;y=0;}
+    else if(edge===1){x=w;y=Math.random()*h;}
+    else if(edge===2){x=Math.random()*w;y=h;}
+    else{x=0;y=Math.random()*h;}
+    sssParticles.push({x,y,vx:(Math.random()-0.5)*0.8,vy:(Math.random()-0.5)*0.8,r:20+Math.random()*40,life:1,decay:0.005+Math.random()*0.005});
+  }
+  requestAnimationFrame(()=>{
+    sctx.clearRect(0,0,w,h);
+    sssParticles=sssParticles.filter(p=>{
+      p.x+=p.vx;p.y+=p.vy;p.life-=p.decay;
+      if(p.life<=0)return false;
+      const grad=sctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);
+      grad.addColorStop(0,`rgba(255,200,50,${p.life*0.18})`);
+      grad.addColorStop(1,'rgba(255,150,0,0)');
+      sctx.fillStyle=grad;sctx.beginPath();sctx.arc(p.x,p.y,p.r,0,Math.PI*2);sctx.fill();
+      return true;
+    });
+    if(sssActive)startSSSSmoke();
+    else sctx.clearRect(0,0,w,h);
+  });
+}
+
+function onComboClick(){
+  comboClicks++;
+  comboTimerLeft=COMBO_DECAY_SECS;
+  rankVisible=true;
+
+  const newIdx=getRankForClicks(comboClicks);
+  if(newIdx>currentRankIdx){
+    currentRankIdx=newIdx;
+    const letter=document.getElementById('rank-letter');
+    letter.style.animation='none';
+    requestAnimationFrame(()=>{letter.style.animation='rankPop 0.25s cubic-bezier(0.2,0,0.3,1.4)';});
+    playRankSound(currentRankIdx);
+    if(currentRankIdx===6&&!logrosUnlocked.has('p8')){
+      logrosUnlocked.add('p8');toast('Logro desbloqueado','Poker May Cry');
+    }
+  }
+  updateRankUI();
+
+  clearInterval(comboTimerInterval);
+  comboTimerInterval=setInterval(()=>{
+    comboTimerLeft=Math.max(0,comboTimerLeft-0.1);
+
+    // bar decay toward current rank floor
+    if(currentRankIdx>=0){
+      const decayRate=currentRankIdx===6?0.22:0.07;
+      comboClicks=Math.max(0,comboClicks-decayRate);
+
+      // if clicks hit 0, reset everything
+      if(comboClicks<=0||comboTimerLeft<=0){
+        clearInterval(comboTimerInterval);
+        comboClicks=0;currentRankIdx=-1;rankVisible=false;
+        updateRankUI();
+        return;
+      }
+
+      // update rank based on current clicks (can only go down now)
+      const newIdx=getRankForClicks(comboClicks);
+      if(newIdx!==currentRankIdx){
+        currentRankIdx=newIdx;
+        const letter=document.getElementById('rank-letter');
+        letter.style.animation='none';
+        requestAnimationFrame(()=>{letter.style.animation='rankPop 0.25s cubic-bezier(0.2,0,0.3,1.4)';});
+      }
+    }
+
+    updateRankUI();
+  },100);
+}
 
 function totalFPS(){return UPGRADES.reduce((s,u,i)=>s+u.fps*upgCounts[i],0);}
 function getACtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
@@ -384,6 +605,7 @@ function checkLogros(){
 function checkPowerupLogro(upgId){
   LOGROS_POWERUP.forEach(l=>{
     if(logrosUnlocked.has(l.id))return;
+    if(l.upgId===-1)return;
     if(l.upgId!==upgId)return;
     const needed=l.reqCount||1;
     if(upgCounts[upgId]>=needed){logrosUnlocked.add(l.id);toast('Logro desbloqueado',l.name);}
@@ -406,6 +628,7 @@ function renderLogrosModal(){
 /* CARD CLICK */
 document.getElementById('card-wrap').addEventListener('click',function(e){
   fichas+=clickPower;playSound('card');
+  onComboClick();
   const lp=document.getElementById('left-panel');const lpR=lp.getBoundingClientRect();
   const cR=this.getBoundingClientRect();
   const x=cR.left-lpR.left+cR.width/2;const y=cR.top-lpR.top+20;
