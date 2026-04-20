@@ -90,7 +90,25 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
 .logro-desc{font-size:10px;color:var(--text2);font-style:italic;margin-top:1px;}
 .logro-locked .logro-name{color:var(--text3);}
 .close-btn{display:block;margin:18px auto 0;background:none;border:1px solid var(--border2);border-radius:8px;padding:8px 28px;color:var(--text2);font-family:'Cinzel',serif;font-size:12px;letter-spacing:2px;cursor:pointer;transition:all 0.2s;}
-.close-btn:hover{border-color:var(--accent);color:var(--accent);}
+/* ── FLOATING BONUS CARDS ── */
+.floating-card{position:fixed;z-index:50;cursor:pointer;animation:fcFloat 3s ease-in-out infinite,fcFadeIn 0.5s ease-out;}
+.poker-card{animation:fcFloat 2.8s ease-in-out infinite,fcFadeIn 0.6s ease-out;}
+@keyframes fcFadeIn{0%{opacity:0;transform:scale(0.5);}100%{opacity:1;transform:scale(1);}}
+@keyframes fcFadeOut{0%{opacity:1;transform:scale(1);}100%{opacity:0;transform:scale(0.4) translateY(-20px);}}
+@keyframes fcFloat{0%,100%{transform:translateY(0px) rotate(-2deg);}50%{transform:translateY(-14px) rotate(2deg);}}
+.fc-inner{width:54px;height:76px;background:#fdfaff;border-radius:6px;border:1.5px solid #c9a227;box-shadow:0 4px 20px rgba(201,162,39,0.45);padding:4px;position:relative;display:flex;align-items:center;justify-content:center;transition:box-shadow 0.15s,transform 0.15s;}
+.floating-card:hover .fc-inner,.floating-card:hover .fc-poker-wrap{filter:brightness(1.15);}
+.fc-corner{position:absolute;font-family:monospace;font-size:10px;font-weight:bold;line-height:1.1;text-align:center;}
+.fc-tl{top:3px;left:4px;}
+.fc-br{bottom:3px;right:4px;}
+.fc-center{font-size:24px;line-height:1;}
+/* poker hand: cards side by side */
+.fc-poker-wrap{display:flex;flex-direction:column;align-items:center;gap:5px;background:rgba(26,10,46,0.92);border:1.5px solid #c9a227;border-radius:10px;padding:8px 10px;box-shadow:0 6px 28px rgba(201,162,39,0.55);}
+.fc-cards-row{display:flex;flex-direction:row;gap:-6px;}
+.fc-mini{width:30px;height:44px;background:#fdfaff;border:1px solid #c9a227;border-radius:4px;font-family:monospace;font-size:9px;font-weight:bold;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.3;margin-left:-6px;box-shadow:1px 2px 6px rgba(0,0,0,0.3);}
+.fc-mini:first-child{margin-left:0;}
+.fc-mini .fc-ms{font-size:11px;}
+.fc-hand-name{font-family:'Cinzel',serif;font-size:10px;color:#c9a227;letter-spacing:1px;white-space:nowrap;text-align:center;}
 
 /* ── RANK SYSTEM ── */
 #rank-widget{position:absolute;top:16px;left:16px;z-index:20;display:flex;flex-direction:column;gap:6px;pointer-events:none;opacity:0;transition:opacity 0.3s;}
@@ -377,8 +395,14 @@ function startSSSSmoke(){
 
 function onComboClick(){
   comboClicks++;
-  comboTimerLeft=COMBO_DECAY_SECS;
   rankVisible=true;
+
+  // In SSS, each click only adds a small slice of time (not full reset)
+  if(currentRankIdx===6){
+    comboTimerLeft=Math.min(COMBO_DECAY_SECS, comboTimerLeft+0.8);
+  } else {
+    comboTimerLeft=COMBO_DECAY_SECS;
+  }
 
   const newIdx=getRankForClicks(comboClicks);
   if(newIdx>currentRankIdx){
@@ -396,21 +420,14 @@ function onComboClick(){
   clearInterval(comboTimerInterval);
   comboTimerInterval=setInterval(()=>{
     comboTimerLeft=Math.max(0,comboTimerLeft-0.1);
-
-    // bar decay toward current rank floor
     if(currentRankIdx>=0){
-      const decayRate=currentRankIdx===6?0.22:0.07;
+      const decayRate=currentRankIdx===6?0.25:0.07;
       comboClicks=Math.max(0,comboClicks-decayRate);
-
-      // if clicks hit 0, reset everything
       if(comboClicks<=0||comboTimerLeft<=0){
         clearInterval(comboTimerInterval);
         comboClicks=0;currentRankIdx=-1;rankVisible=false;
-        updateRankUI();
-        return;
+        updateRankUI();return;
       }
-
-      // update rank based on current clicks (can only go down now)
       const newIdx=getRankForClicks(comboClicks);
       if(newIdx!==currentRankIdx){
         currentRankIdx=newIdx;
@@ -419,9 +436,131 @@ function onComboClick(){
         requestAnimationFrame(()=>{letter.style.animation='rankPop 0.25s cubic-bezier(0.2,0,0.3,1.4)';});
       }
     }
-
     updateRankUI();
   },100);
+}
+
+/* ══════════════════════════════════════
+   FLOATING BONUS CARDS
+══════════════════════════════════════ */
+const SUITS=['♠','♥','♦','♣'];
+const SUIT_COLORS={'♠':'#1a0a2e','♥':'#cc2222','♦':'#cc2222','♣':'#1a0a2e'};
+const SINGLE_CARDS=[
+  {val:'2',pts:2},{val:'3',pts:3},{val:'4',pts:4},{val:'5',pts:5},
+  {val:'6',pts:6},{val:'7',pts:7},{val:'8',pts:8},{val:'9',pts:9},
+  {val:'10',pts:10},{val:'J',pts:11},{val:'Q',pts:12},{val:'K',pts:13},
+  {val:'A',pts:null}, // null = random 1 or 11
+];
+const POKER_HANDS=[
+  {name:'Pareja',       mult:30,  cards:2, rare:false},
+  {name:'Doble pareja', mult:60,  cards:4, rare:false},
+  {name:'Trío',         mult:120, cards:3, rare:false},
+  {name:'Escalera',     mult:240, cards:5, rare:true},
+  {name:'Color',        mult:420, cards:5, rare:true},
+  {name:'Full House',   mult:600, cards:5, rare:true},
+  {name:'Póker',        mult:900, cards:4, rare:true},
+  {name:'Escalera de color',mult:1500,cards:5,rare:true},
+  {name:'Escalera Real',mult:2700,cards:5,rare:true},
+];
+
+let floatingCards=[];
+let nextCardTime=getNextCardTime();
+let nextPokerTime=getNextPokerTime();
+let cardIdCounter=0;
+
+function getNextCardTime(){return Date.now()+(60+Math.random()*120)*1000;}
+function getNextPokerTime(){return Date.now()+(300+Math.random()*300)*1000;}
+
+function calcCardReward(mult){
+  const fps=totalFPS();
+  const base=fps>0?fps*60*mult:clickPower*mult*10;
+  return Math.max(mult, Math.round(base));
+}
+
+function spawnFloatingCard(isPoker){
+  const el=document.createElement('div');
+  el.className='floating-card'+(isPoker?' poker-card':'');
+  const id=++cardIdCounter;
+  el.dataset.id=id;
+  let reward,handName='';
+  if(isPoker){
+    const pool=POKER_HANDS.filter(h=>h.rare?Math.random()<0.3:true);
+    const hand=pool[Math.floor(Math.random()*pool.length)];
+    reward=calcCardReward(hand.mult);
+    handName=hand.name;
+    el.innerHTML=buildPokerHandHTML(hand);
+  } else {
+    const card=SINGLE_CARDS[Math.floor(Math.random()*SINGLE_CARDS.length)];
+    const suit=SUITS[Math.floor(Math.random()*SUITS.length)];
+    const color=SUIT_COLORS[suit];
+    const pts=card.pts===null?(Math.random()<0.5?1:11):card.pts;
+    reward=pts;
+    el.innerHTML=buildSingleCardHTML(card.val,suit,color);
+  }
+  el.dataset.reward=reward;
+  const margin=80;
+  const x=margin+Math.random()*(window.innerWidth-margin*2);
+  const y=margin+Math.random()*(window.innerHeight-margin*2);
+  el.style.left=x+'px';
+  el.style.top=y+'px';
+  el.addEventListener('click',()=>collectFloatingCard(id,reward,handName,x,y));
+  document.body.appendChild(el);
+  floatingCards.push({id,el,spawnTime:Date.now(),lifetime:isPoker?12000:8000});
+  setTimeout(()=>removeFloatingCard(id),isPoker?12000:8000);
+}
+
+function buildSingleCardHTML(val,suit,color){
+  return `<div class="fc-inner">
+    <div class="fc-corner fc-tl" style="color:${color}">${val}<br>${suit}</div>
+    <div class="fc-center" style="color:${color}">${suit}</div>
+    <div class="fc-corner fc-br" style="color:${color};transform:rotate(180deg)">${val}<br>${suit}</div>
+  </div>`;
+}
+
+function buildPokerHandHTML(hand){
+  const suits=SUITS;const colors=SUIT_COLORS;
+  const vals=['A','K','Q','J','10','9','8','7','6','5'];
+  let cards='';
+  for(let i=0;i<Math.min(hand.cards,5);i++){
+    const s=suits[Math.floor(Math.random()*suits.length)];
+    const v=vals[Math.floor(Math.random()*vals.length)];
+    const c=colors[s];
+    cards+=`<div class="fc-mini" style="color:${c}">${v}<span class="fc-ms">${s}</span></div>`;
+  }
+  return `<div class="fc-poker-wrap"><div class="fc-cards-row">${cards}</div><div class="fc-hand-name">${hand.name}</div></div>`;
+}
+
+function collectFloatingCard(id,reward,handName,x,y){
+  removeFloatingCard(id);
+  fichas+=reward;
+  playSound('bell');
+  const ft=document.createElement('div');
+  ft.style.cssText=`position:fixed;left:${x}px;top:${y-20}px;z-index:999;font-family:'Cinzel',serif;font-weight:600;font-size:15px;color:#e8c94a;text-shadow:0 0 10px rgba(201,162,39,0.8);pointer-events:none;animation:floatUp 1s ease-out forwards;transform:translateX(-50%);white-space:nowrap;`;
+  ft.textContent='+'+fmt(reward)+(handName?' — '+handName:'');
+  document.body.appendChild(ft);
+  setTimeout(()=>ft.remove(),1050);
+  updateUI();
+}
+
+function removeFloatingCard(id){
+  const idx=floatingCards.findIndex(c=>c.id===id);
+  if(idx===-1)return;
+  const {el}=floatingCards[idx];
+  el.style.animation='fcFadeOut 0.4s ease-out forwards';
+  setTimeout(()=>el.remove(),400);
+  floatingCards.splice(idx,1);
+}
+
+function tickFloatingCards(){
+  const now=Date.now();
+  if(now>=nextCardTime){
+    nextCardTime=getNextCardTime();
+    spawnFloatingCard(false);
+  }
+  if(now>=nextPokerTime){
+    nextPokerTime=getNextPokerTime();
+    spawnFloatingCard(true);
+  }
 }
 
 function totalFPS(){return UPGRADES.reduce((s,u,i)=>s+u.fps*upgCounts[i],0);}
@@ -464,6 +603,20 @@ function playSound(type){
       [0,0.18].forEach(d=>{const o=ctx.createOscillator();const g=ctx.createGain();o.frequency.value=1046;g.gain.setValueAtTime(0.3,ctx.currentTime+d);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+d+0.14);o.connect(g);g.connect(ctx.destination);o.start(ctx.currentTime+d);o.stop(ctx.currentTime+d+0.15);});
     } else if(type==='laugh'){
       [0,0.22,0.44,0.66].forEach((d,i)=>{const o=ctx.createOscillator();const g=ctx.createGain();o.type='sine';o.frequency.setValueAtTime(260-i*10,ctx.currentTime+d);o.frequency.exponentialRampToValueAtTime(180-i*8,ctx.currentTime+d+0.18);g.gain.setValueAtTime(0.4,ctx.currentTime+d);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+d+0.2);o.connect(g);g.connect(ctx.destination);o.start(ctx.currentTime+d);o.stop(ctx.currentTime+d+0.22);});
+    } else if(type==='bell'){
+      [[1047,0,0.5],[1319,0.04,0.4],[1568,0.08,0.35],[2093,0.12,0.25],[2637,0.16,0.18]].forEach(([f,delay,vol])=>{
+        const o=ctx.createOscillator();const g=ctx.createGain();
+        o.type='sine';o.frequency.value=f;
+        g.gain.setValueAtTime(vol,ctx.currentTime+delay);
+        g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+delay+0.6);
+        o.connect(g);g.connect(ctx.destination);
+        o.start(ctx.currentTime+delay);o.stop(ctx.currentTime+delay+0.65);
+      });
+      const bn=ctx.createBuffer(1,ctx.sampleRate*0.02,ctx.sampleRate);const bnd=bn.getChannelData(0);
+      for(let i=0;i<bnd.length;i++)bnd[i]=(Math.random()*2-1)*Math.exp(-i/(ctx.sampleRate*0.003))*0.3;
+      const bns=ctx.createBufferSource();bns.buffer=bn;
+      const bflt=ctx.createBiquadFilter();bflt.type='highpass';bflt.frequency.value=4000;
+      bns.connect(bflt);bflt.connect(ctx.destination);bns.start();
     }
   }catch(e){}
 }
@@ -477,7 +630,19 @@ function drawSprite(icon,size=40){
   } else if(icon==='pair'){
     const dc=(ox,oy,col)=>{ctx.fillStyle='#fdfaff';ctx.fillRect(ox,oy,7*p,10*p);ctx.fillStyle=col;ctx.fillRect(ox,oy,p,10*p);ctx.fillRect(ox+6*p,oy,p,10*p);ctx.fillRect(ox,oy,7*p,p);ctx.fillRect(ox,oy+9*p,7*p,p);ctx.fillStyle=col;ctx.fillRect(ox+p,oy+p,2*p,2*p);ctx.fillRect(ox+3*p,oy+4*p,2*p,3*p);ctx.fillRect(ox+2*p,oy+3*p,p,p);ctx.fillRect(ox+4*p,oy+3*p,p,p);};dc(p,3*p,'#1a0a2e');dc(8*p,3*p,'#8b0000');
   } else if(icon==='dog'){
-    ctx.fillStyle='#c8860a';ctx.fillRect(4*p,8*p,8*p,6*p);ctx.fillRect(3*p,6*p,7*p,5*p);ctx.fillStyle='#f5c87a';ctx.fillRect(4*p,8*p,4*p,3*p);ctx.fillStyle='#1a0a2e';ctx.fillRect(4*p,7*p,p,p);ctx.fillRect(7*p,7*p,p,p);ctx.fillStyle='#1a0a2e';ctx.fillRect(5*p,9*p,2*p,p);ctx.fillStyle='#c8860a';ctx.fillRect(2*p,5*p,2*p,3*p);ctx.fillRect(9*p,5*p,2*p,3*p);ctx.fillStyle='#f5c87a';ctx.fillRect(2*p,6*p,p,2*p);ctx.fillRect(10*p,6*p,p,2*p);ctx.fillStyle='#c8860a';ctx.fillRect(4*p,14*p,2*p,2*p);ctx.fillRect(7*p,14*p,2*p,2*p);ctx.fillRect(3*p,13*p,p,2*p);ctx.fillRect(9*p,13*p,p,2*p);ctx.fillStyle='#ff6b6b';ctx.fillRect(6*p,10*p,2*p,2*p);ctx.fillStyle='#cc4444';ctx.fillRect(6*p,11*p,2*p,p);ctx.fillStyle='#7b4fa6';ctx.fillRect(4*p,10*p,8*p,p);ctx.fillStyle='#c9a227';ctx.fillRect(7*p,10*p,2*p,p);ctx.fillStyle='#c8860a';ctx.fillRect(12*p,9*p,2*p,3*p);ctx.fillRect(13*p,8*p,p,p);
+    // marron oscuro
+    ctx.fillStyle='#5a2d0c';ctx.fillRect(4*p,8*p,8*p,6*p);ctx.fillRect(3*p,6*p,7*p,5*p);
+    ctx.fillStyle='#8b4513';ctx.fillRect(4*p,8*p,4*p,3*p);
+    ctx.fillStyle='#1a0a2e';ctx.fillRect(4*p,7*p,p,p);ctx.fillRect(7*p,7*p,p,p);
+    ctx.fillStyle='#1a0a2e';ctx.fillRect(5*p,9*p,2*p,p);
+    ctx.fillStyle='#5a2d0c';ctx.fillRect(2*p,5*p,2*p,3*p);ctx.fillRect(9*p,5*p,2*p,3*p);
+    ctx.fillStyle='#8b4513';ctx.fillRect(2*p,6*p,p,2*p);ctx.fillRect(10*p,6*p,p,2*p);
+    ctx.fillStyle='#5a2d0c';ctx.fillRect(4*p,14*p,2*p,2*p);ctx.fillRect(7*p,14*p,2*p,2*p);ctx.fillRect(3*p,13*p,p,2*p);ctx.fillRect(9*p,13*p,p,2*p);
+    ctx.fillStyle='#ff6b6b';ctx.fillRect(6*p,10*p,2*p,2*p);
+    ctx.fillStyle='#cc4444';ctx.fillRect(6*p,11*p,2*p,p);
+    ctx.fillStyle='#7b4fa6';ctx.fillRect(4*p,10*p,8*p,p);
+    ctx.fillStyle='#c9a227';ctx.fillRect(7*p,10*p,2*p,p);
+    ctx.fillStyle='#5a2d0c';ctx.fillRect(12*p,9*p,2*p,3*p);ctx.fillRect(13*p,8*p,p,p);
   } else if(icon==='ai'){
     ctx.fillStyle='#534AB7';ctx.fillRect(3*p,4*p,10*p,8*p);ctx.fillStyle='#EEEDFE';ctx.fillRect(4*p,5*p,2*p,2*p);ctx.fillRect(7*p,5*p,2*p,2*p);ctx.fillRect(10*p,5*p,2*p,2*p);ctx.fillRect(4*p,9*p,8*p,p);ctx.fillStyle='#534AB7';ctx.fillRect(5*p,2*p,p,2*p);ctx.fillRect(8*p,2*p,p,2*p);ctx.fillRect(11*p,2*p,p,2*p);ctx.fillRect(5*p,12*p,p,2*p);ctx.fillRect(8*p,12*p,p,2*p);ctx.fillRect(11*p,12*p,p,2*p);ctx.fillStyle='#c9a227';ctx.fillRect(2*p,6*p,p,2*p);ctx.fillRect(13*p,6*p,p,2*p);ctx.fillRect(2*p,9*p,p,2*p);ctx.fillRect(13*p,9*p,p,2*p);
   } else if(icon==='iron'){
@@ -504,13 +669,13 @@ function drawMiniCoin(ctx,x,y,frame){
   ctx.fillStyle='#a07010';ctx.fillRect(ox,y+10,wobble,1);
 }
 function drawMiniDog(ctx,x,y){
-  ctx.fillStyle='#c8860a';ctx.fillRect(x,y+3,8,6);ctx.fillRect(x+1,y,6,6);
-  ctx.fillStyle='#f5c87a';ctx.fillRect(x+1,y+3,5,5);
+  ctx.fillStyle='#5a2d0c';ctx.fillRect(x,y+3,8,6);ctx.fillRect(x+1,y,6,6);
+  ctx.fillStyle='#8b4513';ctx.fillRect(x+1,y+3,5,5);
   ctx.fillStyle='#1a0a2e';ctx.fillRect(x+1,y+1,2,2);ctx.fillRect(x+4,y+1,2,2);
   ctx.fillStyle='#ff6b6b';ctx.fillRect(x+2,y+7,4,2);
   ctx.fillStyle='#7b4fa6';ctx.fillRect(x+1,y+6,7,2);
   ctx.fillStyle='#c9a227';ctx.fillRect(x+3,y+6,3,2);
-  ctx.fillStyle='#c8860a';ctx.fillRect(x+8,y+3,3,5);ctx.fillRect(x+10,y+1,2,3);
+  ctx.fillStyle='#5a2d0c';ctx.fillRect(x+8,y+3,3,5);ctx.fillRect(x+10,y+1,2,3);
 }
 function drawMiniHammer(ctx,x,y,angle){
   ctx.save();ctx.translate(x+6,y+6);ctx.rotate(angle);
@@ -709,6 +874,7 @@ function gameLoop(now){
   const dt=(now-lastTick)/1000;lastTick=now;
   fichas+=totalFPS()*dt;
   spawnParticles();tickParticles();drawParticles();
+  tickFloatingCards();
   updateUI();
   requestAnimationFrame(gameLoop);
 }
